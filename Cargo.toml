@@ -5,6 +5,3 @@ edition = "2021"
 
 [dependencies]
 macroquad = "0.4.10"
-
-[build]
-target = "wasm32-unknown-unknown"
