@@ -1,33 +1,18 @@
 use macroquad::prelude::*;
 
-use crate::colors::ColorPalette;
+use crate::{colors::ColorPalette, ColorState};
 
-pub enum ColorState {
-    Primary,
-    Secondary
-}
-
-impl ColorState {
-    pub fn next(&self) -> Self {
-        match self {
-            Self::Secondary => Self::Primary,
-            Self::Primary => Self::Secondary,
-        }
-    }
-}
 
 pub struct Player {
-    pub state: ColorState,
     health: i32,
     rotation: f32,
-    x: f32,
-    y: f32,
+    pub x: f32,
+    pub y: f32,
 }
 
 impl Default for Player {
     fn default() -> Player {
         Player {
-            state: ColorState::Secondary,
             health: 10,
             rotation: 0.0,
             x: 50.0,
@@ -41,8 +26,8 @@ impl Player {
         let dt = get_frame_time();
     }
 
-    pub fn draw(&self, c: &ColorPalette) {
-        let color = match self.state {
+    pub fn draw(&self, c: &ColorPalette, s: &ColorState) {
+        let color = match s {
             ColorState::Primary => c.FG_PRIMARY,
             ColorState::Secondary => c.FG_SECONDARY
         };
@@ -71,10 +56,6 @@ impl Player {
         }
         if is_key_down(KeyCode::S){
             self.y += speed * dt;
-        }
-
-        if is_key_pressed(KeyCode::Space){
-            self.state = self.state.next();
         }
     }
 }
