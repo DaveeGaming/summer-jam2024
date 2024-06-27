@@ -17,6 +17,7 @@ mod player;
 mod enemy;
 mod projectile;
 mod colors;
+mod assets;
 
 use miniquad::window::screen_size;
 
