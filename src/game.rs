@@ -1,6 +1,6 @@
 use macroquad::{prelude::*, rand};
 use rand::rand;
-use crate::{colors::ColorPalette, player::*, enemy::*};
+use crate::{bullet::Bullet, colors::ColorPalette, enemy::*, player::*};
 
 #[derive(PartialEq, Eq)]
 pub enum ColorState {
@@ -17,22 +17,23 @@ impl ColorState {
     }
 }
 
-pub struct Game {
+pub struct Game<'g> {
     state: ColorState,
     palettes: [ColorPalette; 2],
     palette: ColorPalette,
     enemies: Vec<Box<dyn Enemy>>, // Box is for allocating to the heap
     player: Player,
+    bullets: Vec<Bullet<'g>>
 }
 
-impl Default for Game {
+impl Default for Game<'_> {
     fn default() -> Self {
         Game {
             state: ColorState::Primary,
             palette: ColorPalette::default(),
             player: Player::default(),
             enemies: Vec::new(),
-
+            bullets: Vec::new(),
 
             palettes: [
                 ColorPalette::default(),
@@ -42,13 +43,25 @@ impl Default for Game {
     }
 }
 
-impl Game {
+impl Game<'_> {
     pub fn update(&mut self) {
         self.player.update();
+
+        self.bullets.retain_mut(|bullet| {
+            bullet.update();
+
+            bullet.is_alive
+        });
+
+        self.enemies.retain_mut(|enemy| {
+            enemy.update(&self.player, &self.state);
+
+            enemy.get_health() > 0
+        });
+
         for enemy in self.enemies.iter_mut() {
             enemy.update(&self.player, &self.state);
         }
-
 
         if is_key_pressed(KeyCode::C) {
             self.palette = self.palettes[ rand::gen_range(0, self.palettes.len()) ]

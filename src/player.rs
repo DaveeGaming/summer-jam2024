@@ -1,6 +1,6 @@
 use macroquad::prelude::*;
 
-use crate::{colors::ColorPalette, ColorState};
+use crate::{colors::ColorPalette, ColorState, DESIGN_HEIGHT, DESIGN_WIDTH};
 
 
 
@@ -13,7 +13,6 @@ pub struct Player {
     dy: f32,
     shoot_dx: f32,
     shoot_dy: f32,
-    bullets: Vec<PlayerBullet>,
     shoot_t: u32,
     melee_t: u32
 }
@@ -29,7 +28,6 @@ impl Default for Player {
             dy: 0.0,
             shoot_dx: 1.0,
             shoot_dy: 0.0,
-            bullets: vec![],
             shoot_t: 0,
             melee_t: 0
         }
@@ -45,10 +43,6 @@ impl Player {
 
         let center_x = self.x + 15.0;
         let center_y = self.y + 15.0;
-
-        for b in &self.bullets {
-            b.draw();
-        }
 
         if self.melee_t > 0 && self.melee_t < 15 {
             draw_circle(center_x, center_y, 45.0, YELLOW);
@@ -90,13 +84,7 @@ impl Player {
 
         if is_key_down(KeyCode::J) || is_key_down(KeyCode::F) {
             if self.shoot_t % 5 == 0 {
-                self.bullets.push(PlayerBullet {
-                    x: self.x + 15.0,
-                    y: self.y + 15.0,
-                    dx: self.shoot_dx,
-                    dy: self.shoot_dy,
-                    is_dead: false  
-                });
+                
             }
 
             self.shoot_t += 1;
@@ -122,33 +110,5 @@ impl Player {
 
         self.dx *= 0.85;
         self.dy *= 0.85;
-
-        self.bullets.retain_mut(|b| {
-            b.update();
-
-            !b.is_dead
-        });
-    }
-}
-
-pub struct PlayerBullet {
-    pub x: f32,
-    pub y: f32,
-    pub dx: f32,
-    pub dy: f32,
-    pub is_dead: bool
-}
-
-impl PlayerBullet {
-    pub fn update(&mut self) {
-        let dt = get_frame_time();
-        let speed = 550.0;
-
-        self.x += self.dx * speed * dt;
-        self.y += self.dy * speed * dt;
-    }
-
-    pub fn draw(&self) {
-        draw_rectangle(self.x, self.y, 8.0, 8.0, WHITE);
     }
 }

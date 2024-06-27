@@ -1,7 +1,8 @@
 use macroquad::prelude::*;
 use crate::{player::*, ColorState};
 
-pub trait Enemy {
+pub trait Enemy { 
+    fn get_health(&self) -> i32;
     fn update(&mut self, p: &Player, s: &ColorState);
     fn draw(&mut self, s: &ColorState);
 }
@@ -46,6 +47,10 @@ impl FollowEnemy {
 
 
 impl Enemy for FollowEnemy {
+    fn get_health(&self) -> i32 {
+        self.health
+    }
+
     fn update(&mut self, p: &Player, s: &ColorState) {
         let dt = get_frame_time();
         let dir = dir_to_player(self.x, self.y, p);
@@ -72,6 +77,10 @@ pub struct FollowShootEnemy {
 }
 
 impl Enemy for FollowShootEnemy {
+    fn get_health(&self) -> i32 {
+        self.health
+    }
+
     fn update(&mut self, p: &Player, s: &ColorState) {
         match s {
             ColorState::Primary => {

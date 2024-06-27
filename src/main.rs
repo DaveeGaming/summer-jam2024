@@ -15,7 +15,7 @@ mod game;
 mod constant;
 mod player;
 mod enemy;
-mod projectile;
+mod bullet;
 mod colors;
 
 use miniquad::window::screen_size;
