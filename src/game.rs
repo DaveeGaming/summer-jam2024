@@ -26,7 +26,6 @@ impl Default for Game {
 
 impl Game {
     pub fn update(&mut self) {
-        self.player.input();
         self.player.update();
 
         if is_key_pressed(KeyCode::C) {
