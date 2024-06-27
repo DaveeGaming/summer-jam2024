@@ -44,7 +44,6 @@ impl Default for Game {
 
 impl Game {
     pub fn update(&mut self) {
-        self.player.input();
         self.player.update();
         for enemy in self.enemies.iter_mut() {
             enemy.update(&self.player, &self.state);
