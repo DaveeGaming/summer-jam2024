@@ -3,7 +3,7 @@ use crate::{player::*, ColorState};
 
 pub trait Enemy {
     fn update(&mut self, p: &Player, s: &ColorState);
-    fn draw(&mut self);
+    fn draw(&mut self, s: &ColorState);
 }
 
 
@@ -60,7 +60,37 @@ impl Enemy for FollowEnemy {
 
     }
 
-    fn draw(&mut self) {
+    fn draw(&mut self, s: &ColorState) {
         draw_rectangle(self.x, self.y, 20.0, 20.0, WHITE); 
     }    
+}
+
+pub struct FollowShootEnemy {
+    pub health: i32,
+    pub x: f32,
+    pub y: f32,
+}
+
+impl Enemy for FollowShootEnemy {
+    fn update(&mut self, p: &Player, s: &ColorState) {
+        match s {
+            ColorState::Primary => {
+                // Chase player
+                let dt = get_frame_time();
+                let dir = dir_to_player(self.x, self.y, p);
+                let speed = 100.0;
+                self.x += dir.x * speed * dt;
+                self.y += dir.y * speed * dt;
+            }
+            ColorState::Secondary => {
+                // Stop and shoot at player
+                let dir = dir_to_player(self.x, self.y, p);
+                // TODO: SHOOT XD
+            }
+        } 
+    }
+
+    fn draw(&mut self, s: &ColorState) {
+        
+    }
 }

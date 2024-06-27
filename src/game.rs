@@ -74,7 +74,7 @@ impl Game {
 
         clear_background(bg_color);
         for enemy in self.enemies.iter_mut() {
-            enemy.draw();
+            enemy.draw(&self.state);
         }
 
         self.player.draw(&self.palette, &self.state);
