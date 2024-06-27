@@ -1,10 +1,11 @@
+use std::mem::take;
+
 use macroquad::{prelude::*, rand};
 use crate::{assets::Assets, colors::ColorPalette, enemy::*};
 
 pub const DESIGN_WIDTH: f32 = 1024.;
 pub const DESIGN_HEIGHT: f32 = 576.;
 
-// =========== UTILS ============
 
 
 
@@ -33,7 +34,7 @@ pub struct Game {
     palette: ColorPalette,
     wave_current: i32,
     wave_start: bool,
-    enemies: Vec<Box<dyn Enemy>>, // Box is for allocating to the heap
+    enemies: Vec<Enemies>, // Box is for allocating to the heap
     bullets: Vec<PlayerBullet>,
     player: Player,
 }
@@ -121,9 +122,14 @@ impl Game {
     pub fn update(&mut self) {
         self.player_update();
 
-        for enemy in self.enemies.iter_mut() {
-            enemy.update(&self.player, &self.state);
+        let mut enemies = std::mem::take(&mut self.enemies);
+        for enemy in enemies.iter_mut() {
+            match enemy {
+                Enemies::FollowEnemy(e) => self.update_follow_enemy(e),
+                Enemies::FollowShootEnemy(e) => self.update_follow_shoot_enemy(e)
+            }
         }
+        self.enemies = enemies;
 
         if self.enemies.len() == 0 && self.wave_start {
             self.wave_current += 1;
@@ -140,7 +146,9 @@ impl Game {
 
         if is_key_pressed(KeyCode::B) {
             self.enemies.push( 
-                Box::new(FollowEnemy::new(10, 50.0, 50.0, FollowEnemyType::ChangeSpeed(100.0, 50.0)))
+                Enemies::FollowEnemy( 
+                    FollowEnemy::new(10, 50.0, 50.0, FollowEnemyType::ChangeSpeed(100.0, 50.0))
+                )
             );
         }
     }
@@ -154,9 +162,15 @@ impl Game {
 
 
         clear_background(bg_color);
-        for enemy in self.enemies.iter_mut() {
-            enemy.draw(&self.state);
+
+        let mut enemies = std::mem::take(&mut self.enemies);
+        for enemy in enemies.iter_mut() {
+            match enemy {
+                Enemies::FollowEnemy(e) => self.draw_follow_enemy(e),
+                Enemies::FollowShootEnemy(e) => self.draw_follow_shoot_enemy(e)
+            }
         }
+        self.enemies = enemies;
         
         self.player_draw();
         
@@ -266,12 +280,56 @@ impl Game {
         });
     }
 
+
+
+
+    // =========== ENEMIES =============
+
+    pub fn update_follow_enemy(&mut self,e: &mut FollowEnemy) {
+        let dt = get_frame_time();
+        let dir = dir_to_player(e.x, e.y, &self.player);
+
+        let speed = match e.typ {
+            FollowEnemyType::ConstantSpeed(s) => s,
+            FollowEnemyType::ChangeSpeed(s1, s2) => if self.state == ColorState::Primary { s1 } else { s2 }
+        };
+
+        e.x += dir.x * speed * dt;
+        e.y += dir.y * speed * dt;
+    }
+
+    pub fn draw_follow_enemy(&mut self,e: &mut FollowEnemy) {
+        draw_rectangle(e.x, e.y, 20.0, 20.0, WHITE); 
+    }
+
+
+
+    pub fn update_follow_shoot_enemy(&mut self, e: &mut FollowShootEnemy) {
+        match self.state {
+            ColorState::Primary => {
+                // Chase player
+                let dt = get_frame_time();
+                let dir = dir_to_player(e.x, e.y, &self.player);
+                let speed = 100.0;
+                e.x += dir.x * speed * dt;
+                e.y += dir.y * speed * dt;
+            }
+            ColorState::Secondary => {
+                // Stop and shoot at player
+                let dir = dir_to_player(e.x, e.y, &self.player);
+                // TODO: SHOOT XD
+            }
+        } 
+    }
+
+    pub fn draw_follow_shoot_enemy(&mut self,e: &mut FollowShootEnemy) {
+        draw_rectangle(e.x, e.y, 20.0, 20.0, YELLOW); 
+    }
 }
 
 
 
-
-
+// =========== UTILS ============
 
 pub fn dir_to_player(x: f32, y: f32, p: &Player) -> Vec2 {
     let diff = Vec2 { 

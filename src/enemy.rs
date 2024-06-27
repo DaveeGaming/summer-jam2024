@@ -3,9 +3,9 @@ use crate::ColorState;
 use crate::game::*;
 
 
-pub trait Enemy {
-    fn update(&mut self, p: &Player, s: &ColorState);
-    fn draw(&mut self, s: &ColorState);
+pub enum Enemies {
+    FollowEnemy(FollowEnemy),
+    FollowShootEnemy(FollowShootEnemy)
 }
 
 pub enum FollowEnemyType {
@@ -28,53 +28,8 @@ impl FollowEnemy {
     }
 }
 
-
-impl Enemy for FollowEnemy {
-    fn update(&mut self, p: &Player, s: &ColorState) {
-        let dt = get_frame_time();
-        let dir = dir_to_player(self.x, self.y, p);
-
-        let speed = match self.typ {
-            FollowEnemyType::ConstantSpeed(s) => s,
-            FollowEnemyType::ChangeSpeed(s1, s2) => if *s == ColorState::Primary { s1 } else { s2 }
-        };
-
-        self.x += dir.x * speed * dt;
-        self.y += dir.y * speed * dt;
-
-    }
-
-    fn draw(&mut self, s: &ColorState) {
-        draw_rectangle(self.x, self.y, 20.0, 20.0, WHITE); 
-    }    
-}
-
 pub struct FollowShootEnemy {
     pub health: i32,
     pub x: f32,
     pub y: f32,
-}
-
-impl Enemy for FollowShootEnemy {
-    fn update(&mut self, p: &Player, s: &ColorState) {
-        match s {
-            ColorState::Primary => {
-                // Chase player
-                let dt = get_frame_time();
-                let dir = dir_to_player(self.x, self.y, p);
-                let speed = 100.0;
-                self.x += dir.x * speed * dt;
-                self.y += dir.y * speed * dt;
-            }
-            ColorState::Secondary => {
-                // Stop and shoot at player
-                let dir = dir_to_player(self.x, self.y, p);
-                // TODO: SHOOT XD
-            }
-        } 
-    }
-
-    fn draw(&mut self, s: &ColorState) {
-        
-    }
 }
