@@ -22,7 +22,7 @@ pub struct Game {
     palettes: [ColorPalette; 2],
     palette: ColorPalette,
     wave_current: i32,
-    wave_duration: f32, // Time in seconds
+    wave_start: bool,
     enemies: Vec<Box<dyn Enemy>>, // Box is for allocating to the heap
     player: Player,
 }
@@ -36,7 +36,8 @@ impl Default for Game {
             player: Player::default(),
             enemies: Vec::new(),
             wave_current: 1,
-            wave_duration: 20.0,
+            wave_start: false,
+
 
             palettes: [
                 ColorPalette::default(),
@@ -53,6 +54,10 @@ impl Game {
             enemy.update(&self.player, &self.state);
         }
 
+        if self.enemies.len() == 0 && self.wave_start {
+            self.wave_current += 1;
+            self.wave_start = false;
+        }
 
         if is_key_pressed(KeyCode::C) {
             self.palette = self.palettes[ rand::gen_range(0, self.palettes.len()) ]
@@ -89,7 +94,7 @@ impl Game {
         self.player.draw(&self.palette, &self.state);
         
         let x_center = DESIGN_WIDTH / 2.0;
-        let text = format!("Wave {}", self.wave_current);
-        Game::draw_text_centered(&text, x_center, 20.0, 40.0, &self.assets.font_monogram)
+        let wave_txt = format!("Wave {}", self.wave_current);
+        Game::draw_text_centered(&wave_txt, x_center, 20.0, 40.0, &self.assets.font_monogram);
     }
 }
