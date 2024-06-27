@@ -9,14 +9,20 @@
 
 use macroquad::prelude::*;
 use crate::game::*;
+use crate::constant::*;
 
 mod game;
-use miniquad::{log, window::screen_size};
+mod constant;
+mod player;
+mod enemy;
+mod projectile;
+mod colors;
 
-const DESIGN_WIDTH: f32 = 1024.;
-const DESIGN_HEIGHT: f32 = 576.;
+use miniquad::window::screen_size;
+
 #[macroquad::main("title")]
 async fn main() {
+    let mut game = Game::default();
     let canvas = render_target(DESIGN_WIDTH as u32, DESIGN_HEIGHT as u32);
     canvas.texture.set_filter(FilterMode::Nearest);
     loop {
@@ -38,11 +44,9 @@ async fn main() {
         camera.zoom.y = -camera.zoom.y;
         
         set_camera(&camera);
+        game.update();
+        game.draw();
 
-        clear_background(BLUE);
-        draw_text("test", 50.0, 50.0, 32.0, GREEN);
-        draw_line(0.0, 0.0, DESIGN_WIDTH as f32, DESIGN_HEIGHT as f32, 1.0, GREEN);
-        
         set_default_camera();
         clear_background(BLANK);
         draw_texture_ex(&canvas.texture, x_center, y_center, WHITE, 
