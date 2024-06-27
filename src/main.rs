@@ -9,11 +9,8 @@
 
 use macroquad::prelude::*;
 use crate::game::*;
-use crate::constant::*;
 
 mod game;
-mod constant;
-mod player;
 mod enemy;
 mod projectile;
 mod colors;

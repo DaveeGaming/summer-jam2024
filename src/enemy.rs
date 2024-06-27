@@ -1,29 +1,13 @@
 use macroquad::prelude::*;
-use crate::{player::*, ColorState};
+use crate::ColorState;
+use crate::game::*;
+
 
 pub trait Enemy {
     fn update(&mut self, p: &Player, s: &ColorState);
     fn draw(&mut self, s: &ColorState);
 }
 
-
-fn dir_to_player(x: f32, y: f32, p: &Player) -> Vec2 {
-    let diff = Vec2 { 
-        x: p.x - x,
-        y: p.y - y,
-    };
-
-    return diff.normalize_or_zero();
-}
-
-fn distance_to_player(x: f32, y: f32, p: &Player) -> f32 {
-    let diff = Vec2 { 
-        x: p.x - x,
-        y: p.y - y,
-    };
-
-    return (diff.x * diff.x + diff.y * diff.y).sqrt();
-}
 pub enum FollowEnemyType {
     ConstantSpeed(f32), // Constant speed
     ChangeSpeed(f32, f32) // Primary state speed | Secondary state speed
