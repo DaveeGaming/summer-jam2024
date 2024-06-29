@@ -60,7 +60,7 @@ impl PlayerBullet {
     }
 
     pub fn draw(&self) {
-        draw_rectangle(self.x, self.y, 8.0, 8.0, WHITE);
+        draw_circle(self.x, self.y, 5.0, WHITE);
     }
 }
 
