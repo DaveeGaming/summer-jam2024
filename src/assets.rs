@@ -1,9 +1,10 @@
-use macroquad::{logging::error, text::{load_ttf_font, load_ttf_font_from_bytes, Font}};
+use macroquad::{logging::error, text::{load_ttf_font, load_ttf_font_from_bytes, Font}, texture::Texture2D};
 
 
 
 pub struct Assets {
     pub font_monogram: Font,
+    pub start_cube: Texture2D,
 }
 
 
@@ -15,7 +16,8 @@ impl Default for Assets {
         }
 
         return Assets {
-            font_monogram: font.unwrap()
+            font_monogram: font.unwrap(),
+            start_cube: Texture2D::from_file_with_format( include_bytes!("..\\assets\\start.png"), None),
         }
     }
 }

@@ -1,35 +1,47 @@
 use macroquad::prelude::*;
-use crate::ColorState;
-use crate::game::*;
 
-
-pub enum Enemies {
-    FollowEnemy(FollowEnemy),
-    FollowShootEnemy(FollowShootEnemy)
+#[derive(Clone, Copy)]
+pub enum EnemyType {
+    FollowEnemy,
+    FollowShootEnemy,
 }
 
-pub enum FollowEnemyType {
-    ConstantSpeed(f32), // Constant speed
-    ChangeSpeed(f32, f32) // Primary state speed | Secondary state speed
-}
-
-pub struct FollowEnemy {
+#[derive(Clone, Copy)]
+pub struct Enemy {
     pub health: i32,
     pub x: f32,
     pub y: f32,
-    pub typ: FollowEnemyType
+    pub size: f32,
+    pub kind: EnemyType,
+    pub attack_speed: f32,
+    pub can_collide: bool,
+    pub contact_damage: i32,
+    pub attack_t: f32,
 }
 
-impl FollowEnemy {
-    pub fn new(health: i32, x: f32, y: f32, typ: FollowEnemyType) -> FollowEnemy{
-        FollowEnemy {
-            health, x, y, typ,
+impl Default for Enemy {
+    fn default() -> Self {
+        Self {
+            health: 10,
+            x: 50.0,
+            y: 50.0,
+            size: 40.0,
+            can_collide: false,
+            kind: EnemyType::FollowEnemy,
+            attack_speed: 0.0,
+            attack_t: 0.0,
+            contact_damage: 2,
         }
     }
 }
 
-pub struct FollowShootEnemy {
-    pub health: i32,
-    pub x: f32,
-    pub y: f32,
+impl Enemy {
+    pub fn get_rect(&self) -> Rect {
+        Rect {
+            x: self.x,
+            y: self.y,
+            w: self.size,
+            h: self.size,
+        }
+    }
 }
