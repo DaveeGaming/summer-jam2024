@@ -1,25 +1,33 @@
 
 // FEATURE CREEP CORNER
-// Blue/Red shio/enemy/bullet
-// Different palettes
 // Weapon for diff color ships
 // Bullethell kinda stuff
-// Fast mouse movement vs asteroid movement vs any other idk
 
 
-use std::time::SystemTime;
+//TODO: Change shooting to be on the mouse
+//TODO: Crosshair color for palettes
+//TODO: Better difficulty curve
+//TODO: Melee attack
+//TODO: Particle system
+//TODO: Abilities like shield and stuff
+//TODO: instead of upgrade, heal or reroll
+//TODO: Difficulty curve
 
-use quad_storage::*;
-use macroquad::{audio::{load_sound, play_sound, play_sound_once, set_sound_volume, PlaySoundParams}, prelude::*};
+use macroquad::prelude::*;
 use crate::game::*;
 
 mod game;
 mod enemy;
-mod projectile;
+mod collision;
+mod player;
+mod bullet;
 mod colors;
 mod assets;
+mod wave;
+mod menu;
+mod collectibe;
 
-use miniquad::window::{high_dpi, screen_size};
+use miniquad::window::screen_size;
 
 #[macroquad::main("title")]
 async fn main() {

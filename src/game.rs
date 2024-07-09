@@ -1,8 +1,14 @@
-use std::{cmp::{max, min}, default, fmt::format, mem::take, sync::MutexGuard, thread::spawn};
+use std::{cmp::min, sync::MutexGuard};
 
-use macroquad::{audio::{play_sound, play_sound_once, set_sound_volume, stop_sound, PlaySoundParams}, prelude::*, rand};
+use macroquad::prelude::*;
+use macroquad::audio::*;
 use quad_storage::LocalStorage;
-use crate::{assets::Assets, colors::ColorPalette, enemy::*};
+
+use crate::{assets::Assets, bullet::*, colors::ColorPalette, enemy::*};
+use crate::player::*;
+use crate::wave::*;
+use crate::colors::*;
+use crate::collectibe::*;
 
 pub const DESIGN_WIDTH: f32 = 1600.;
 pub const DESIGN_HEIGHT: f32 = 900.;
@@ -25,20 +31,6 @@ pub const DESIGN_HEIGHT: f32 = 900.;
 //TODO: also a fucking game title lmao
 
 
-#[derive(PartialEq, Eq, Clone, Copy)]
-pub enum ColorState {
-    Primary,
-    Secondary
-}
-
-impl ColorState {
-    pub fn next(&self) -> Self {
-        match self {
-            Self::Secondary => Self::Primary,
-            Self::Primary => Self::Secondary,
-        }
-    }
-}
 
 
 pub enum GameState {
@@ -48,56 +40,12 @@ pub enum GameState {
     Score,
 }
 
-pub enum WaveState {
-    Start,
-    Spawning
-}
 
 pub struct Unlocks {
     pub orangegreen: bool,
     pub purpleyellow: bool,
 }
 
-pub struct Wave {
-    current: i32,
-    state: WaveState,
-    enemy_remaining: i32,
-    upgrade_picked: bool,
-    enemies_set: bool,
-
-    move_player:bool,
-    move_player_t: f32,
-    move_player_tmax: f32,
-    old_x: f32,
-    old_y: f32,
-
-    spawn_delay_t: f32,
-    spawn_delay_tmax: f32,
-
-    start_spawned: bool,
-    upgrades_spawned: bool,
-}
-
-impl Wave {
-    pub fn default() -> Self {
-        Wave { 
-            current: 0, 
-            state: WaveState::Start, 
-            enemy_remaining: 0, 
-            enemies_set: false,
-            start_spawned: false, 
-            spawn_delay_tmax: 5.0,
-            spawn_delay_t: 0.0,
-            upgrades_spawned: false, 
-            upgrade_picked: false,
-
-            move_player: false,
-            move_player_t: 0.0,
-            move_player_tmax: 0.8,
-            old_x: 0.0, old_y: 0.0,
-        }
-    }
-}
 
 pub struct Game {
     pub game_state: GameState,
@@ -189,56 +137,6 @@ impl Game {
     }
 }
 
-#[derive(PartialEq, Eq)]
-pub enum BulletType {
-    Player,
-    Enemy
-}
-
-pub struct Bullet {
-    pub damage: i32,
-    pub x: f32,
-    pub y: f32,
-    pub last_x: f32,
-    pub last_y: f32,
-    pub dx: f32,
-    pub dy: f32,
-    pub size: f32,
-    pub speed: f32,
-    pub state: ColorState,
-    pub kind: BulletType,
-    pub hit: bool
-}
-
-
-impl Bullet {
-    pub fn new(damage: i32, x: f32, y: f32, dx: f32, dy: f32, size: f32, speed: f32, kind: BulletType) -> Bullet {
-        Bullet {
-            x,y,dx,dy,kind, damage, size, speed,
-            last_x: x,
-            last_y: y,
-            hit: false,
-            state: ColorState::Primary,
-        }
-    }
-
-    pub fn update(&mut self) {
-        self.last_x = self.x;
-        self.last_y = self.y;
-        let dt = get_frame_time();
-
-        self.x += self.dx * self.speed * dt;
-        self.y += self.dy * self.speed * dt;
-    }
-}
-
-pub struct CircleAttack {
-    pub x: f32,
-    pub y: f32,
-    pub hit: bool,
-    pub radius: f32,
-    pub color: ColorState,
-}
 
 pub struct SpawnEnemy {
     pub x: f32,
@@ -247,24 +145,6 @@ pub struct SpawnEnemy {
     pub to_spawn: Enemy,
 }
 
-#[derive(Clone, Copy)]
-pub enum CollectibeKind {
-    StartCube,
-    Maxhp,
-    Projectile,
-    Size,
-    Slowdmg,
-    Speed,
-    Backshot
-}
-
-pub struct Collectibe {
-    pub x: f32,
-    pub y: f32,
-    pub size: f32, 
-    pub kind: CollectibeKind,
-    pub should_exist: bool
-}
 
 impl Collectibe {
     pub fn get_rect(&self) -> Rect {
@@ -273,73 +153,6 @@ impl Collectibe {
         }
     }
 }
-
-
-pub struct Player {
-    pub max_health: i32,
-    pub health: i32,
-    rotation: f32,
-    pub size: f32,
-    pub x: f32,
-    pub y: f32,
-    dx: f32,
-    dy: f32,
-    spread: f32,
-    projectiles: f32,
-    attack_speed: f32,
-    move_speed: f32,
-    bullet_size: f32,
-    bullet_speed: f32,
-    damage: f32,
-    shoot_dx: f32,
-    shoot_dy: f32,
-    shoot_t: f32,
-    melee_t: f32,
-    melee_range: f32,
-
-    heal_from_b: i32,
-}
-
-impl Default for Player {
-    fn default() -> Player {
-        Player {
-            max_health: 10,
-            health: 10,
-            rotation: 0.0,
-            size: 40.0,
-            damage: 1.0,
-            spread: 3.0,
-            move_speed: 300.0,
-            projectiles: 1.0,
-            bullet_size: 6.0,
-            bullet_speed: 550.0,
-            x: DESIGN_WIDTH/2.0,
-            y: 700.0,
-            dx: 0.0,
-            dy: 0.0,
-            shoot_dx: 1.0,
-            shoot_dy: 0.0,
-            attack_speed: 0.1,
-            shoot_t: 0.0,
-            melee_t: 0.0,
-            melee_range: 80.0,
-
-            heal_from_b: 1,
-        }
-    }
-}
-
-impl Player {
-    pub fn get_rect(&self) -> Rect {
-        Rect {
-            x: self.x,
-            y: self.y,
-            w: self.size,
-            h: self.size
-        }
-    }
-}
-
 
 impl Game {
     pub fn update(&mut self) {
@@ -373,141 +186,6 @@ impl Game {
         }
     }
 
-    pub fn level_bar(v: i32) -> String {
-        let mut o = "O".repeat(v as usize);
-        let dot = ".".repeat(10-v as usize);
-        o.push_str(&dot);
-        return o;
-    }
-
-
-    pub fn menu_update(&mut self) {
-        if !self.menu_song_started {
-            play_sound(&self.assets.menu_song, PlaySoundParams { looped: true, volume: self.music_level as f32 / 10.0});
-            self.menu_song_started = true;
-        }
-
-
-        if ( is_key_pressed(KeyCode::Enter) || is_key_pressed(KeyCode::Space) )&& self.menu_selected == 0 {
-            self.game_state = GameState::Playing;
-            stop_sound(&self.assets.menu_song);
-            play_sound(&self.assets.play_song, PlaySoundParams { looped: true, volume: self.music_level as f32 / 10.0});
-            play_sound(&self.assets.menu_switch, PlaySoundParams { looped: false, volume: self.effect_level as f32 / 10.0});
-        }
-
-        if is_key_pressed(KeyCode::W) || is_key_pressed(KeyCode::Up) {
-            self.menu_selected = max(0, self.menu_selected - 1);
-            play_sound(&self.assets.menu_switch, PlaySoundParams { looped: false, volume: self.effect_level as f32 / 10.0});
-        }
-
-        if is_key_pressed(KeyCode::S) || is_key_pressed(KeyCode::Down) {
-            self.menu_selected = min(3, self.menu_selected + 1);
-            play_sound(&self.assets.menu_switch, PlaySoundParams { looped: false, volume: self.effect_level as f32 / 10.0});
-        }
-
-        if self.menu_selected == 1 {
-            if is_key_pressed(KeyCode::A) || is_key_pressed(KeyCode::Left) { 
-                self.music_level = max(0, self.music_level - 1);
-                set_sound_volume(&self.assets.menu_song, self.music_level as f32 / 10.0);
-                play_sound(&self.assets.menu_switch, PlaySoundParams { looped: false, volume: self.effect_level as f32 / 10.0});
-                self.should_save = true;
-            }
-
-            if is_key_pressed(KeyCode::D) || is_key_pressed(KeyCode::Right) { 
-                self.music_level = min(10, self.music_level + 1);
-                set_sound_volume(&self.assets.menu_song, self.music_level as f32 / 10.0);
-                play_sound(&self.assets.menu_switch, PlaySoundParams { looped: false, volume: self.effect_level as f32 / 10.0});
-                self.should_save = true;
-            }
-        }
-
-        if self.menu_selected == 2 {
-            if is_key_pressed(KeyCode::A) || is_key_pressed(KeyCode::Left) { 
-                self.effect_level = max(0, self.effect_level - 1);
-                play_sound(&self.assets.menu_switch, PlaySoundParams { looped: false, volume: self.effect_level as f32 / 10.0});
-                self.should_save = true;
-            }
-
-            if is_key_pressed(KeyCode::D) || is_key_pressed(KeyCode::Right) { 
-                self.effect_level = min(10, self.effect_level + 1);
-                play_sound(&self.assets.menu_switch, PlaySoundParams { looped: false, volume: self.effect_level as f32 / 10.0});
-                self.should_save = true;
-            }
-        }
-
-        if self.menu_selected == 3 {
-            if is_key_pressed(KeyCode::A) || is_key_pressed(KeyCode::Left) { 
-                self.curr_palette_idx -= 1;
-                if self.curr_palette_idx < 0 { 
-                    self.curr_palette_idx = self.palettes.len() as i32 - 1;
-                }
-                play_sound(&self.assets.menu_switch, PlaySoundParams { looped: false, volume: self.effect_level as f32 / 10.0});
-            }
-
-            if is_key_pressed(KeyCode::D) || is_key_pressed(KeyCode::Right) { 
-                self.curr_palette_idx += 1;
-                if self.curr_palette_idx > self.palettes.len() as i32 - 1 { 
-                    self.curr_palette_idx = 0;
-                }
-                play_sound(&self.assets.menu_switch, PlaySoundParams { looped: false, volume: self.effect_level as f32 / 10.0});
-            }
-            
-            self.palette = match self.curr_palette_idx {
-                1 => if self.unlocks.orangegreen { self.palettes[1] } else { self.palettes[0] }
-                2 => if self.unlocks.purpleyellow { self.palettes[2] } else { self.palettes[0] }
-                _ => self.palettes[0],
-            }
-        }
-    }
-
-    pub fn menu_draw(&mut self) {
-        clear_background(self.palette.BG_PRIMARY);
-        let x_center = DESIGN_WIDTH/2.0;
-        draw_texture(&self.assets.menu1, x_center - 40.0, 110.0, self.palette.FG_PRIMARY);
-        draw_texture(&self.assets.menu2, x_center - 40.0, 110.0, self.palette.FG_SECONDARY);
-        draw_text_centered("COLOR   SWITCH ", x_center, 200.0, 130.0, &self.assets.font_monogram);
-        draw_text_centered(&format!("Highscore: {} ", self.high_score), x_center, 260.0, 60.0, &self.assets.font_monogram);
-
-
-        // PLAY
-        // MUSIC
-        // EFFECT
-        // PALETTE
-
-        match self.menu_selected {
-            0 => {
-                draw_text_centered("> Play < ", x_center, 540.0, 60.0, &self.assets.font_monogram);
-                draw_text_centered(&format!("Music [{}] ", Game::level_bar(self.music_level)), x_center, 600.0, 60.0, &self.assets.font_monogram);
-                draw_text_centered(&format!("Effects [{}] ", Game::level_bar(self.effect_level)), x_center, 660.0, 60.0, &self.assets.font_monogram);
-                draw_text_centered("Color palette ", x_center, 720.0, 60.0, &self.assets.font_monogram);
-            }
-            1 => {
-                draw_text_centered(" Play  ", x_center, 540.0, 60.0, &self.assets.font_monogram);
-                draw_text_centered(&format!("> Music [{}] < ", Game::level_bar(self.music_level)), x_center, 600.0, 60.0, &self.assets.font_monogram);
-                draw_text_centered(&format!("Effects [{}] ", Game::level_bar(self.effect_level)), x_center, 660.0, 60.0, &self.assets.font_monogram);
-                draw_text_centered("Color palette ", x_center, 720.0, 60.0, &self.assets.font_monogram);
-            }
-            2 => {
-                draw_text_centered(" Play  ", x_center, 540.0, 60.0, &self.assets.font_monogram);
-                draw_text_centered(&format!("Music [{}] ", Game::level_bar(self.music_level)), x_center, 600.0, 60.0, &self.assets.font_monogram);
-                draw_text_centered(&format!("> Effects [{}] < ", Game::level_bar(self.effect_level)), x_center, 660.0, 60.0, &self.assets.font_monogram);
-                draw_text_centered("Color palette ", x_center, 720.0, 60.0, &self.assets.font_monogram);
-            },
-            3 => {
-                draw_text_centered(" Play  ", x_center, 540.0, 60.0, &self.assets.font_monogram);
-                draw_text_centered(&format!("Music [{}] ", Game::level_bar(self.music_level)), x_center, 600.0, 60.0, &self.assets.font_monogram);
-                draw_text_centered(&format!("Effects [{}] ", Game::level_bar(self.effect_level)), x_center, 660.0, 60.0, &self.assets.font_monogram);
-                let text = match self.curr_palette_idx {
-                    0 => "Red & Blue",
-                    1 => if self.unlocks.orangegreen { "Orange & Green" } else { "Reach wave 10 to unlock" }
-                    2 => if self.unlocks.purpleyellow { "Purple & Yellow" } else { "Reach wave 25 to unlock" }
-                    _ => "what"
-                };
-                draw_text_centered(&format!("> {} <", text), x_center, 720.0, 60.0, &self.assets.font_monogram);
-            }
-            _ => ()
-        }
-    }
 
     // =========== ENEMY SPAWN ============
 
@@ -523,8 +201,8 @@ impl Game {
 
     pub fn draw_spawning(&mut self,s: &mut SpawnEnemy) {
         let mut color = match self.color_state {
-            ColorState::Primary => self.palette.FG_PRIMARY,
-            ColorState::Secondary => self.palette.FG_SECONDARY
+            ColorState::Primary => self.palette.fg_primary,
+            ColorState::Secondary => self.palette.fg_secondary
         };
 
         color.a = 0.8;
@@ -578,30 +256,6 @@ impl Game {
         self.wave.start_spawned = true;
     }
 
-    pub fn spawn_upgrades(&mut self) {
-        let padding = 120.0;
-        let upg_size = 100.0;
-        
-        let total_size = upg_size * self.upgrade_count + padding * (self.upgrade_count - 1.0);
-        let start = total_size/2.0;
-        
-        
-        for i in 0..self.upgrade_count as i32 {
-            let center_x = DESIGN_WIDTH/2.0;
-            let x = center_x - start + i as f32*(upg_size + padding);
-            self.upgrades.push(
-                Collectibe {
-                    x: x,
-                    y: DESIGN_HEIGHT/2.0 - upg_size/2.0,
-                    size: upg_size,
-                    kind: self.upg_list[rand::gen_range(0, self.upg_list.len())],
-                    should_exist: true,
-                }
-            )
-        }
-        self.move_player();
-        self.wave.upgrades_spawned = true;
-    }
 
     pub fn game_update(&mut self) {
 
@@ -809,7 +463,7 @@ impl Game {
                         let rad_x = rand::gen_range(50.0, DESIGN_WIDTH - 400.0);
                         let rad_y = rand::gen_range(50.0,  DESIGN_HEIGHT - 350.0);
 
-                        for i in 0..to_spawn {
+                        for _ in 0..to_spawn {
                             let x = rand::gen_range(0.0, 300.0);
                             let y = rand::gen_range(0.0, 300.0);
                             self.enemy_spawn.push(
@@ -843,13 +497,13 @@ impl Game {
 
     pub fn game_draw(&mut self) {
         let bg_color = match self.color_state {
-            ColorState::Primary =>  self.palette.BG_PRIMARY,
-            ColorState::Secondary => self.palette.BG_SECONDARY
+            ColorState::Primary =>  self.palette.bg_primary,
+            ColorState::Secondary => self.palette.bg_secondary
         };
 
         let bg_color_invert = match self.color_state {
-            ColorState::Secondary =>  self.palette.BG_PRIMARY,
-            ColorState::Primary => self.palette.BG_SECONDARY
+            ColorState::Secondary =>  self.palette.bg_primary,
+            ColorState::Primary => self.palette.bg_secondary
         };
 
 
@@ -876,8 +530,8 @@ impl Game {
         let mut circles = std::mem::take(&mut self.circle_attacks);
         for c in circles.iter_mut() {
             let color = match c.color {
-                ColorState::Primary => self.palette.FG_PRIMARY,
-                ColorState::Secondary => self.palette.FG_SECONDARY
+                ColorState::Primary => self.palette.fg_primary,
+                ColorState::Secondary => self.palette.fg_secondary
             };
             draw_circle_lines(c.x, c.y, c.radius, 5.0, color)
         }
@@ -909,7 +563,7 @@ impl Game {
             self.draw_upgrades(u)
         }
 
-        upg.retain(|u| !self.wave.upgrade_picked);
+        upg.retain(|_| !self.wave.upgrade_picked);
         self.upgrades = upg;
 
         self.player_draw();
@@ -919,462 +573,6 @@ impl Game {
         draw_text_centered(&wave_txt, x_center, 70.0, 90.0, &self.assets.font_monogram);
         let score = format!("score: {} ", self.current_score);
         draw_text_centered(&score, x_center, 100.0, 40.0, &self.assets.font_monogram);
-    }
-
-
-
-
-
-    // ================ PLAYER ====================
-
-
-    pub fn draw_healthbar(&self) {
-        let color = match self.color_state {
-            ColorState::Primary => self.palette.FG_PRIMARY,
-            ColorState::Secondary => self.palette.FG_SECONDARY
-        };
-
-        let width = 8.0 * self.player.max_health as f32;
-        let height = 20.0;
-        let frame_thick = 5.0;
-        let padding = 6.0;
-
-        let top_right_x = self.player.x + self.player.size/2.0 - (width as f32)/2.0;
-        let top_right_y = self.player.y + self.player.size + padding;
-
-        draw_rectangle_lines(
-            top_right_x, top_right_y,
-            width, height, frame_thick, color
-        );
-
-        draw_rectangle(
-            top_right_x + padding, 
-            top_right_y + padding, 
-            (width - 2.0*padding) * self.player.health as f32 / self.player.max_health as f32, 
-            height-2.0*padding, color
-        )
-
-
-    }
-
-    pub fn player_draw(&self) {
-        let color = match self.color_state {
-            ColorState::Primary => self.palette.FG_PRIMARY,
-            ColorState::Secondary => self.palette.FG_SECONDARY
-        };
-
-        let center_x = self.player.x + self.player.size/2.0;
-        let center_y = self.player.y + self.player.size/2.0;
-
-        let mut melee_color = color.clone();
-        melee_color.a = 0.5;
-
-
-        if self.player.melee_t > 1.5 && self.player.melee_t < 2.0 {
-            draw_circle(center_x, center_y, self.player.melee_range, melee_color);
-        }
-
-        draw_rectangle_ex(self.player.x, self.player.y, self.player.size, self.player.size,
-            DrawRectangleParams {
-                color: color,
-                rotation: self.player.rotation,
-                ..Default::default()
-            }
-        );
-
-        draw_line(
-            self.player.x + self.player.size/2.0, // x center 
-            self.player.y + self.player.size/2.0, // y center
-            self.player.x + self.player.size/2.0 + self.player.shoot_dx * self.player.size/4.0, // x center + x_dir
-            self.player.y + self.player.size/2.0 + self.player.shoot_dy * self.player.size/4.0, // y center + y_dir 
-            2.0, WHITE);
-
-            self.draw_healthbar();
-
-    }
-
-
-    pub fn player_update(&mut self) {
-        let dt = get_frame_time();
-
-        let mut dir = Vec2::ZERO;
-
-        if is_key_down(KeyCode::A) || is_key_down(KeyCode::Left) {
-            dir.x = -1.0;
-        }
-        if is_key_down(KeyCode::D) || is_key_down(KeyCode::Right) {
-            dir.x = 1.0;
-        }
-        if is_key_down(KeyCode::W) || is_key_down(KeyCode::Up) {
-            dir.y = -1.0;
-        }
-        if is_key_down(KeyCode::S) || is_key_down(KeyCode::Down) {
-            dir.y = 1.0;
-        }
-
-        dir = dir.normalize_or_zero();
-
-        self.player.dx = dir.x * self.player.move_speed;
-        self.player.dy = dir.y * self.player.move_speed;
-
-        if self.player.shoot_t > 0.0 {
-            self.player.shoot_t -= dt;
-        }
-
-        if is_key_down(KeyCode::J) || is_key_down(KeyCode::F) {
-            if self.player.shoot_t <= 0.0 {
-
-                play_sound(&self.assets.shoot, PlaySoundParams { looped: false, volume: self.effect_level as f32 / 10.0 });
-                // rotate by spread randomly
-                let deg_projectile = 2.0;
-                let offset = deg_projectile/2.0;
-
-                for i in 0..self.player.projectiles as i32 {
-                    
-                    let actual_spread = rand::gen_range(-self.player.spread, self.player.spread);
-                    let  dir = rotate_vec(Vec2 { x: self.player.shoot_dx, y: self.player.shoot_dy}, actual_spread);
-                    let mut dir = rotate_vec(dir, -offset + i as f32*deg_projectile);
-                    dir = dir.normalize_or_zero();
-
-                    self.bullets.push(Bullet::new(
-                        1, // damage
-                        self.player.x + 15.0, // x
-                        self.player.y + 15.0, // y
-                        dir.x, // dx
-                        dir.y, // dy
-                        self.player.bullet_size,
-                        self.player.bullet_speed,
-                        BulletType::Player, // kind
-                    ));
-                }
-
-
-
-                self.player.shoot_t += self.player.attack_speed;
-            }
-
-        } else {
-            if dir.x != 0.0 || dir.y != 0.0 {
-                self.player.shoot_dx = dir.x;
-                self.player.shoot_dy = dir.y; 
-            }
-        }
-
-        if self.player.melee_t < 0.0 && (is_key_down(KeyCode::K) || is_key_down(KeyCode::G)) && false {
-            self.player.melee_t = 2.0;
-        }
-
-        if self.player.melee_t >= 0.0 {
-            self.player.melee_t -= get_frame_time();
-        }
-
-        self.player.x += self.player.dx * dt;
-        self.player.y += self.player.dy * dt;
-
-        self.player.dx *= 0.85;
-        self.player.dy *= 0.85;
-
-    }
-
-    // ========== BULLET ============
-
-
-    pub fn bullet_draw(&mut self, b: &Bullet) {
-        if b.kind == BulletType::Player {
-            draw_circle(b.x, b.y, b.size, WHITE);
-        } else {
-            let color = match b.state {
-                ColorState::Primary => self.palette.FG_PRIMARY,
-                ColorState::Secondary => self.palette.FG_SECONDARY,
-            };
-            draw_circle(b.x, b.y, b.size, color);
-        }
-    }
-
-    pub fn bullet_collision(&mut self, b: &mut Bullet) {
-        if b.x < 0.0 || b.y < 0.0 || b.x > DESIGN_WIDTH || b.y > DESIGN_HEIGHT {
-            b.hit = true;
-            return;
-        }
-
-
-        match b.kind {
-            BulletType::Player => self.bullet_enemy_coll(b),
-            BulletType::Enemy => self.bullet_player_coll(b)
-        }
-    }
-
-    // player bullet collides with enemy
-    pub fn bullet_enemy_coll(&mut self, b: &mut Bullet) {
-        let mut enemies = std::mem::take(&mut self.enemies);
-        for enemy in enemies.iter_mut() {
-            let hit = rect_collide(
-                Rect{
-                    x: b.x - b.size,
-                    y: b.y - b.size,
-                    w: b.size * 2.0,
-                    h: b.size * 2.0,
-                },enemy.get_rect()); 
-            
-            if hit {
-                b.hit = hit;
-                enemy.health -= self.player.damage;
-            }
-        }
-        self.enemies = enemies;
-    }
-
-    // enemy bullet collides with player
-    pub fn bullet_player_coll(&mut self, b: &mut Bullet) {
-        let hit = rect_collide(
-            self.player.get_rect(),
-            Rect{
-                x: b.x - b.size,
-                y: b.y - b.size,
-                w: b.size * 2.0,
-                h: b.size * 2.0,
-            }
-        );
-
-        if hit {
-            b.hit = hit;
-            if b.state == self.color_state {
-                self.player.health = min(self.player.max_health, self.player.health + self.player.heal_from_b)
-            } else {
-                self.player.health -= b.damage;
-                play_sound(&self.assets.hit, PlaySoundParams { looped: false, volume: self.effect_level as f32 / 10.0 });
-            }
-        }
-    }
-    // =========== ENEMIES =============
-
-    // enemy and player collision
-    pub fn enemy_collision(&mut self,e: &mut Enemy) {
-        let hit = rect_collide(e.get_rect(), self.player.get_rect());
-
-
-
-        if hit && e.can_collide {
-            if e.kind == EnemyType::FollowEnemy {
-                if e.state == self.color_state {
-                self.player.health = min(self.player.max_health, self.player.health + self.player.heal_from_b)
-                } else {
-                    self.player.health -= 1;
-                }
-            } else {
-                self.player.health -= e.contact_damage;
-                play_sound(&self.assets.hit, PlaySoundParams { looped: false, volume: self.effect_level as f32 / 10.0 });
-            }
-            e.health = 0.0;
-        }
-    }
-
-
-    pub fn update_follow_enemy(&mut self,e: &mut Enemy) {
-        let dt = get_frame_time();
-        let dir = dir_to_player(e.x, e.y, &self.player);
-        let speed = 250.0;
-
-        e.x += dir.x * speed * dt;
-        e.y += dir.y * speed * dt;
-    }
-
-    pub fn draw_follow_enemy(&mut self,e: &mut Enemy) {
-        let color = match e.state {
-            ColorState::Primary => self.palette.FG_PRIMARY,
-            ColorState::Secondary => self.palette.FG_SECONDARY,
-        };
-
-        draw_rectangle(e.x, e.y, e.size, e.size, color); 
-    }
-
-    pub fn update_follow_shoot_enemy(&mut self, e: &mut Enemy) {
-        match self.color_state {
-            ColorState::Primary => {
-                // Chase player
-                let dt = get_frame_time();
-                let dir = dir_to_player(e.x, e.y, &self.player);
-                let speed = 200.0;
-                e.x += dir.x * speed * dt;
-                e.y += dir.y * speed * dt;
-            }
-            ColorState::Secondary => {
-                // Stop and shoot at player
-                if e.attack_t <= 0.0 {
-                    let dir = dir_to_player(e.x, e.y, &self.player);
-                    self.bullets.push(
-                        Bullet::new(1,e.x + e.size/2.0, e.y + e.size/2.0, dir.x, dir.y, 6.0, 550.0, BulletType::Enemy)
-                    );
-                    e.attack_t = e.attack_speed;
-                }
-
-            }
-        } 
-    }
-
-    pub fn draw_follow_shoot_enemy(&mut self,e: &mut Enemy) {
-        draw_texture(&self.assets.shooter, e.x, e.y, WHITE);
-        // draw_rectangle(e.x, e.y, e.size, e.size, WHITE); 
-    }
-
-    pub fn update_static_circle_enemy(&mut self,e: &mut Enemy) {
-        let state = self.color_state.next();
-
-        e.attack_t -= get_frame_time();
-        if e.attack_t <= 0.0 {
-            self.circle_attacks.push(
-                CircleAttack { 
-                    x: e.x + e.size/2.0, 
-                    y: e.y + e.size/2.0, 
-                    radius: 1.0, 
-                    color: state,
-                    hit: false,
-                }
-            );
-            e.attack_t = e.attack_speed;
-        }
-    }
-
-    pub fn draw_static_circle_enemy(&mut self,e: &mut Enemy) {
-        draw_texture(&self.assets.tower, e.x, e.y, WHITE);
-        // draw_rectangle(e.x, e.y, e.size, e.size, YELLOW); 
-    }
-
-
-
-
-
-
-
-
-
-
-    // ========= Collectibles / UPGRADES =============
-
-    pub fn update_start_cube(&mut self, c: &mut Collectibe) {
-        if rect_collide(Rect{x: c.x, y: c.y, w: c.size, h: c.size}, self.player.get_rect()) {
-            self.wave.state = WaveState::Spawning;
-            c.should_exist = false;
-            self.wave.start_spawned = false;
-        }
-    }
-
-    pub fn draw_start_cube(&mut self, c: &Collectibe) {
-        draw_texture(&self.assets.start_cube, c.x, c.y, WHITE);
-    }
-
-    pub fn update_upgrade(&mut self, c: &mut Collectibe) {
-        let hit = rect_collide(self.player.get_rect(), c.get_rect());
-        if !hit {
-            return; // early return, dotn care didnt ask + l + ratio
-        }
-
-        self.wave.state = WaveState::Spawning;
-        self.wave.upgrades_spawned = false;
-        self.wave.upgrade_picked = true;
-
-    
-        match c.kind {
-            CollectibeKind::Maxhp => {
-                self.player.max_health += 1;
-            }
-            CollectibeKind::Projectile => {
-                let new_dmg = self.player.damage - 1.0;
-                self.player.projectiles += 1.0;
-                self.player.damage = if new_dmg <= 0.5 { 0.5 } else { new_dmg };
-                self.player.spread += 3.0;
-            },
-            CollectibeKind::Size =>{
-                self.player.bullet_size += 0.5;
-            }
-            CollectibeKind::Speed => {
-                self.player.move_speed += 30.0;
-            }
-            CollectibeKind::Slowdmg => {
-                self.player.damage += 1.0;
-                self.player.bullet_speed -= 30.0;
-            },
-            _ => ()
-        }
-    }
-
-    pub fn draw_upgrades(&mut self, c: &Collectibe) {
-        // definitely not start cube or any other, upg logic matches
-        // match upg with its texture, for now colored cube
-        match c.kind {
-            CollectibeKind::Maxhp => {
-                draw_texture(&self.assets.maxhp, c.x, c.y, WHITE);
-                draw_text_ex("+ maxhp", c.x - 40.0, c.y + 130.0, 
-                    TextParams { 
-                        font: Some(&self.assets.font_monogram), 
-                        font_size: 50,
-                        ..Default::default()
-                    }
-                )
-            },
-            CollectibeKind::Projectile => {
-                draw_texture(&self.assets.projectile, c.x, c.y, WHITE);
-                draw_text_ex("+ shot", c.x - 40.0, c.y + 130.0, 
-                    TextParams { 
-                        font: Some(&self.assets.font_monogram), 
-                        font_size: 50,
-                        ..Default::default()
-                    }
-                );
-                draw_text_ex("+ spread", c.x - 40.0, c.y + 160.0, 
-                    TextParams { 
-                        font: Some(&self.assets.font_monogram), 
-                        font_size: 50,
-                        ..Default::default()
-                    }
-                );
-                draw_text_ex("- dmg", c.x - 40.0, c.y + 190.0, 
-                    TextParams { 
-                        font: Some(&self.assets.font_monogram), 
-                        font_size: 50,
-                        ..Default::default()
-                    }
-                );
-            },
-            CollectibeKind::Speed => {
-                draw_texture(&self.assets.speed, c.x, c.y, WHITE);
-                draw_text_ex("+ speed", c.x - 40.0, c.y + 130.0, 
-                    TextParams { 
-                        font: Some(&self.assets.font_monogram), 
-                        font_size: 50,
-                        ..Default::default()
-                    }
-                )
-            },
-            CollectibeKind::Size => {
-                draw_texture(&self.assets.size, c.x, c.y, WHITE);
-                draw_text_ex("+ size", c.x - 40.0, c.y + 130.0, 
-                    TextParams { 
-                        font: Some(&self.assets.font_monogram), 
-                        font_size: 50,
-                        ..Default::default()
-                    }
-                )
-            },
-            CollectibeKind::Slowdmg => {
-                draw_texture(&self.assets.slowdmg, c.x, c.y, WHITE);
-                draw_text_ex("+ dmg", c.x - 40.0, c.y + 130.0, 
-                    TextParams { 
-                        font: Some(&self.assets.font_monogram), 
-                        font_size: 50,
-                        ..Default::default()
-                    }
-                );
-                draw_text_ex("- shot speed", c.x - 40.0, c.y + 160.0, 
-                    TextParams { 
-                        font: Some(&self.assets.font_monogram), 
-                        font_size: 50,
-                        ..Default::default()
-                    }
-                )
-            },
-            _ => ()
-        }
     }
 }
 
