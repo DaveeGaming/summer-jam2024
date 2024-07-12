@@ -4,6 +4,8 @@ use macroquad::prelude::*;
 use macroquad::audio::*;
 use quad_storage::LocalStorage;
 
+use crate::characters::Character;
+use crate::characters::CharacterKind;
 use crate::{assets::Assets, bullet::*, colors::ColorPalette, enemy::*};
 use crate::player::*;
 use crate::wave::*;
@@ -36,7 +38,8 @@ pub const DESIGN_HEIGHT: f32 = 900.;
 pub enum GameState {
     MainMenu,
     Playing,
-    Paused,
+    Options,
+    Characters,
     Score,
 }
 
@@ -62,6 +65,7 @@ pub struct Game {
     pub enemies: Vec<Enemy>, // Box is for allocating to the heap
     pub enemy_list:  [Enemy; 4],
     pub upg_list: [CollectibeKind; 5],
+    pub characters: Vec<Character>,
     pub bullets: Vec<Bullet>,
     pub collectibles: Vec<Collectibe>,
     pub circle_attacks: Vec<CircleAttack>,
@@ -69,10 +73,16 @@ pub struct Game {
     pub player: Player,
     pub wave: Wave,
     pub upgrade_count: f32,
+    pub selected_char: i32,
 
+    pub menu_bg_x: f32,
+    pub menu_bg_y: f32,
+    pub menu_bg_dx: f32,
+    pub menu_bg_dy: f32,
     pub menu_selected: i32,
     pub music_level: i32,
     pub effect_level: i32,
+    pub shooting_sound: bool,
     pub menu_song_started: bool,
     pub switch_effect_t: f32,
     pub switch_effect_total: f32,
@@ -80,7 +90,7 @@ pub struct Game {
 
 impl Game {
     pub async fn default() -> Self {
-        Game {
+        let mut g = Game {
             color_state: ColorState::Primary,
             assets: Assets::default().await,
             should_save: false,
@@ -89,9 +99,15 @@ impl Game {
             player: Player::default(),
             enemies: Vec::new(),
             enemy_spawn: Vec::new(),
+            shooting_sound: true,
+            menu_bg_dx: 30.0,
+            menu_bg_dy: 30.0,
+            menu_bg_x: -200.0,
+            menu_bg_y: -300.0,
             bullets: vec![],
             collectibles: Vec::new(),
             circle_attacks: Vec::new(),
+            characters: Vec::new(),
             upgrades: Vec::new(),
             menu_song_started: false,
             high_score: 0,
@@ -103,8 +119,9 @@ impl Game {
             },
 
             menu_selected: 0,
-            music_level: 10,
-            effect_level: 10,
+            music_level: 3,
+            selected_char: 0,
+            effect_level: 3,
 
             upgrade_count: 3.0,
 
@@ -133,7 +150,59 @@ impl Game {
                 Enemy { state: ColorState::Primary,health: 2.0, x: 50.0, y: 50.0, size: 20.0, score: 5, kind: EnemyType::FollowEnemy, can_collide: true, ..Default::default()},
                 Enemy { state: ColorState::Secondary,health: 2.0, x: 50.0, y: 50.0, size: 20.0, score: 5, kind: EnemyType::FollowEnemy, can_collide: true, ..Default::default()},
             ]
-        }    
+        };
+        g.characters = vec![
+            Character {
+               p: Player::default(),
+               name: String::from("Garry"),
+               health: 10,
+               speed: 10.0,
+               damage: 10,
+               kind: CharacterKind::Garry,
+            },
+            Character {
+               p: Player::default(),
+               name: String::from("Bob, Bob & Bob"),
+               health: 10,
+               speed: 10.0,
+               damage: 10,
+               kind: CharacterKind::BobBobBob,
+            },
+            Character {
+               p: Player::default(),
+               name: String::from("John"),
+               health: 10,
+               speed: 10.0,
+               damage: 10,
+               kind: CharacterKind::John,
+            },
+            Character {
+               p: Player::default(),
+               name: String::from("Mark"),
+               health: 10,
+               speed: 10.0,
+               damage: 10,
+               kind: CharacterKind::Mark,
+            },
+            Character {
+               p: Player::default(),
+               name: String::from("Locked"),
+               health: 10,
+               speed: 10.0,
+               damage: 10,
+               kind: CharacterKind::Locked,
+            },
+            Character {
+               p: Player::default(),
+               name: String::from("Locked"),
+               health: 10,
+               speed: 10.0,
+               damage: 10,
+               kind: CharacterKind::Locked,
+            },
+        ];
+
+        return g;    
     }
 }
 
@@ -159,6 +228,8 @@ impl Game {
         match self.game_state {
             GameState::MainMenu => self.menu_update(),
             GameState::Playing => self.game_update(),
+            GameState::Options => self.settings_update(),
+            GameState::Characters => self.characters_update(),
             _ => ()
         }
     }
@@ -167,6 +238,8 @@ impl Game {
         match self.game_state {
             GameState::MainMenu => self.menu_draw(),
             GameState::Playing => self.game_draw(),
+            GameState::Options => self.settings_draw(BLACK),
+            GameState::Characters => self.characters_draw(),
             _ => ()
         }
     }
@@ -184,6 +257,10 @@ impl Game {
             s.set("sound_volume", &self.music_level.to_string());
             s.set("effect_volume", &self.effect_level.to_string());
         }
+    }
+
+    pub fn change_state(&mut self, s: GameState) {
+        self.game_state = s;
     }
 
 
@@ -601,7 +678,9 @@ pub fn distance_to_player(x: f32, y: f32, p: &Player) -> f32 {
 
 pub fn draw_text_centered(text: &str, x: f32, y: f32, font_size: f32, font: &Font) {
     let size = measure_text(&text, Some(&font), font_size as u16, 1.0);
-    draw_text(&text, x - size.width/2.0, y, font_size, WHITE);
+    draw_text_ex(&text, x -size.width/2.0, y, TextParams { 
+        font: Some(font), 
+        font_size: font_size as u16,..Default::default() });
 }
 
 // Takes degrees

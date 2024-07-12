@@ -11,7 +11,7 @@
 //TODO: Particle system
 //TODO: Abilities like shield and stuff
 //TODO: instead of upgrade, heal or reroll
-//TODO: Difficulty curve
+//TODO: Multiple difficulty levels, 
 
 use macroquad::prelude::*;
 use crate::game::*;
@@ -22,7 +22,9 @@ mod collision;
 mod player;
 mod bullet;
 mod colors;
+mod characters;
 mod assets;
+mod options;
 mod wave;
 mod menu;
 mod collectibe;
@@ -50,7 +52,7 @@ async fn main() {
 
     let sound = storage.get("sound_volume");
     if sound.is_none() {
-        storage.set("sound_volume", &10.to_string());
+        storage.set("sound_volume", &3.to_string());
     } else {
         let sound = sound.unwrap();
         game.music_level = sound.parse::<i32>().unwrap();
@@ -58,7 +60,7 @@ async fn main() {
 
     let effect = storage.get("effect_volume");
     if effect.is_none() {
-        storage.set("effect_volume", &10.to_string());
+        storage.set("effect_volume", &3.to_string());
     } else {
         let effect = effect.unwrap();
         game.effect_level = effect.parse::<i32>().unwrap();

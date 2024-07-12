@@ -14,6 +14,12 @@ pub struct Assets {
     pub tower: Texture2D,
     pub menu1: Texture2D,
     pub menu2: Texture2D,
+    pub garry: Texture2D,
+    pub john: Texture2D,
+    pub mark: Texture2D,
+    pub locked: Texture2D,
+    pub bobbobbob: Texture2D,
+    pub bg1: Texture2D,
     pub menu_song: Sound,
     pub play_song: Sound,
     pub menu_switch: Sound,
@@ -25,7 +31,7 @@ pub struct Assets {
 
 impl Assets {
     pub async fn default() -> Self {
-        let font = load_ttf_font_from_bytes( include_bytes!("..\\assets\\monogram.ttf") );
+        let font = load_ttf_font_from_bytes( include_bytes!("..\\assets\\FatPixelFont.ttf") );
         if font.is_err() {
             error!("Unable to load monogram font!")
         }
@@ -35,6 +41,12 @@ impl Assets {
             start_cube: Texture2D::from_file_with_format( include_bytes!("..\\assets\\start.png"), None),
             maxhp: Texture2D::from_file_with_format( include_bytes!("..\\assets\\maxhp.png"), None),
             projectile: Texture2D::from_file_with_format( include_bytes!("..\\assets\\projectile.png"), None),
+            bg1: Texture2D::from_file_with_format( include_bytes!("..\\assets\\bg1.png"), None),
+            garry: Texture2D::from_file_with_format( include_bytes!("..\\assets\\garry.png"), None),
+            bobbobbob: Texture2D::from_file_with_format( include_bytes!("..\\assets\\bobbobbob.png"), None),
+            john: Texture2D::from_file_with_format( include_bytes!("..\\assets\\john.png"), None),
+            mark: Texture2D::from_file_with_format( include_bytes!("..\\assets\\mark.png"), None),
+            locked: Texture2D::from_file_with_format( include_bytes!("..\\assets\\locked.png"), None),
             size: Texture2D::from_file_with_format( include_bytes!("..\\assets\\size.png"), None),
             slowdmg: Texture2D::from_file_with_format( include_bytes!("..\\assets\\slowdmg.png"), None),
             speed: Texture2D::from_file_with_format( include_bytes!("..\\assets\\speed.png"), None),
