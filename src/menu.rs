@@ -60,7 +60,7 @@ impl Game {
         }
 
         if down {
-            self.menu_selected = min(3, self.menu_selected + 1);
+            self.menu_selected = min(4, self.menu_selected + 1);
             self.menu_switch();
         }
 
@@ -76,6 +76,7 @@ impl Game {
         if self.menu_selected == 1 {
             if interact {
                 self.game_state = GameState::Options;
+                self.menu_selected = 0;
                 self.menu_switch();
             }
         }
@@ -103,70 +104,23 @@ impl Game {
                 _ => self.palettes[0],
             }
         }
-        // match self.menu_selected {
-        //     0 => { // Play
-        //         if interact {
-        //             self.game_state = GameState::Playing;
-        //             stop_sound(&self.assets.menu_song);
-        //             play_sound(&self.assets.play_song, PlaySoundParams { looped: true, volume: self.music_level as f32 / 10.0});
-        //             self.menu_switch();
-        //         }
-        //     },
-        //     1 => { // music
-        //         if left {
-        //             self.music_level = max(0, self.music_level - 1);
-        //             set_sound_volume(&self.assets.menu_song, self.music_level as f32 / 10.0);
-        //             self.menu_switch();
-        //             self.should_save = true;
-        //         }
 
-        //         if right {
-        //             self.music_level = min(10, self.music_level + 1);
-        //             set_sound_volume(&self.assets.menu_song, self.music_level as f32 / 10.0);
-        //             self.menu_switch();
-        //             self.should_save = true;
-        //         }
-        //     },
-        //     2 => { // effect
-        //         if left { 
-        //             self.effect_level = max(0, self.effect_level - 1);
-        //             self.menu_switch();
-        //             self.should_save = true;
-        //         }
+        if self.menu_selected == 3 {
+            if interact {
+                self.game_state = GameState::Collection;
+                self.menu_selected = 0;
+                self.menu_switch();
+            }
+        }
+    }
 
-        //         if right { 
-        //             self.effect_level = min(10, self.effect_level + 1);
-        //             self.menu_switch();
-        //             self.should_save = true;
-        //         }
-        //     },
-        //     3 => { // color
-        //         if left { 
-        //             self.curr_palette_idx -= 1;
-        //             if self.curr_palette_idx < 0 { 
-        //                 self.curr_palette_idx = self.palettes.len() as i32 - 1;
-        //             }
-        //             self.menu_switch();
-        //         }
-
-        //         if right { 
-        //             self.curr_palette_idx += 1;
-        //             if self.curr_palette_idx > self.palettes.len() as i32 - 1 { 
-        //                 self.curr_palette_idx = 0;
-        //             }
-        //             self.menu_switch();
-        //         }
-                
-        //         self.palette = match self.curr_palette_idx {
-        //             1 => if true { self.palettes[1] } else { self.palettes[0] }
-        //             2 => if true { self.palettes[2] } else { self.palettes[0] }
-        //             _ => self.palettes[0],
-        //         }
-        //     },
-        //     _ => { // what
-
-        //     }
-        // }
+    pub fn help_text(&mut self) {
+        draw_text_ex("WASD - navigate", 50.0, 800.0, 
+            TextParams { font: Some(&self.assets.font_monogram), font_size: 7, color: GRAY, ..Default::default()});
+        draw_text_ex("ESCAPE - return", 50.0, 780.0, 
+            TextParams { font: Some(&self.assets.font_monogram), font_size: 7, color: GRAY, ..Default::default()});
+        draw_text_ex("Space/Enter - confirm", 50.0, 760.0, 
+            TextParams { font: Some(&self.assets.font_monogram), font_size: 7, color: GRAY, ..Default::default()});
     }
 
     pub fn menu_draw(&mut self) {
@@ -179,11 +133,14 @@ impl Game {
         draw_texture(&self.assets.menu2, x_center - 80.0, 100.0, self.palette.fg_secondary);
         draw_text_centered(" COLOR  SWITCH ", x_center, 120.0, 30.0, &self.assets.font_monogram);
         draw_text_centered(&format!("Highscore: {} ", self.high_score), x_center, 220.0, 15.0, &self.assets.font_monogram);
+        self.help_text();
+
 
         let menu_txt = vec![
             String::from("Play"),
             String::from("Options"),
             String::from("Color palette"),
+            String::from("Collection"),
             String::from("Credits"),
         ];
         // let menu_txt = vec![

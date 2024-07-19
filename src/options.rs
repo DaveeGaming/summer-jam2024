@@ -31,9 +31,15 @@ impl Game {
             self.menu_switch();
         }
 
+        if is_key_pressed(KeyCode::Escape) {
+            self.game_state = GameState::MainMenu;
+            self.menu_switch();
+        }
+
         if self.menu_selected == 0 {
             if interact {
                 self.game_state = GameState::MainMenu;
+                self.menu_selected = 1;
                 self.menu_switch();
             }
         }
@@ -80,6 +86,7 @@ impl Game {
     pub fn settings_draw(&mut self, bg_color: Color) {
         clear_background(bg_color);
         self.background_draw();
+        self.help_text();
 
         let font_size = 15.0;
         let x_center = DESIGN_WIDTH/2.0;

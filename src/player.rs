@@ -76,26 +76,29 @@ impl Game {
             ColorState::Secondary => self.palette.fg_secondary
         };
 
-        let width = 8.0 * self.player.max_health as f32;
-        let height = 20.0;
-        let frame_thick = 5.0;
-        let padding = 6.0;
+        let mut bg_health = color;
+        bg_health.a = 0.6;
 
-        let top_right_x = self.player.x + self.player.size/2.0 - (width as f32)/2.0;
-        let top_right_y = self.player.y + self.player.size + padding;
+        let mut hp = self.player.health;
+        let height = 70.0;
+        let gap = -8.0;
+        let width = height / 2.0;
+        let full_size = self.player.max_health as f32 * (width + gap);
 
-        draw_rectangle_lines(
-            top_right_x, top_right_y,
-            width, height, frame_thick, color
-        );
+        
+        for i in 0..self.player.max_health {
+            let x = DESIGN_WIDTH / 2.0 + (i as f32 * (width + gap)) - full_size / 2.0;
+            let y = DESIGN_HEIGHT - 100.0;
 
-        draw_rectangle(
-            top_right_x + padding, 
-            top_right_y + padding, 
-            (width - 2.0*padding) * self.player.health as f32 / self.player.max_health as f32, 
-            height-2.0*padding, color
-        )
-
+            if hp > 0 {
+                draw_texture_ex(&self.assets.hpbar, x, y, color, 
+                    DrawTextureParams { dest_size: Some(Vec2 { x: width, y: height }), ..Default::default()});
+                hp -= 1;
+            } else {
+                draw_texture_ex(&self.assets.hpbar, x, y, bg_health, 
+                    DrawTextureParams { dest_size: Some(Vec2 { x: width, y: height }), ..Default::default()});
+            }
+        }
 
     }
 
@@ -116,13 +119,16 @@ impl Game {
             draw_circle(center_x, center_y, self.player.melee_range, melee_color);
         }
 
-        draw_rectangle_ex(self.player.x, self.player.y, self.player.size, self.player.size,
-            DrawRectangleParams {
-                color: color,
-                rotation: self.player.rotation,
-                ..Default::default()
-            }
-        );
+        // draw_rectangle_ex(self.player.x, self.player.y, self.player.size, self.player.size,
+        //     DrawRectangleParams {
+        //         color: color,
+        //         ..Default::default()
+        //     }
+        // );
+
+        let texture = self.characters[self.selected_char as usize].get_sprite(&self.assets);
+        draw_texture_ex(texture, self.player.x, self.player.y, color, 
+            DrawTextureParams { dest_size: Some(Vec2 { x: self.player.size, y: self.player.size }), ..Default::default()});
 
         draw_line(
             self.player.x + self.player.size/2.0, // x center 
@@ -141,20 +147,42 @@ impl Game {
 
         let mut dir = Vec2::ZERO;
 
-        if is_key_down(KeyCode::A) || is_key_down(KeyCode::Left) {
+        if is_key_down(KeyCode::A) {
             dir.x = -1.0;
         }
-        if is_key_down(KeyCode::D) || is_key_down(KeyCode::Right) {
+        if is_key_down(KeyCode::D) {
             dir.x = 1.0;
         }
-        if is_key_down(KeyCode::W) || is_key_down(KeyCode::Up) {
+        if is_key_down(KeyCode::W) {
             dir.y = -1.0;
         }
-        if is_key_down(KeyCode::S) || is_key_down(KeyCode::Down) {
+        if is_key_down(KeyCode::S) {
             dir.y = 1.0;
         }
-
         dir = dir.normalize_or_zero();
+
+        let mut shoot_dir = Vec2::ZERO;
+        let mut shooting = false;
+        if is_key_down(KeyCode::Left) {
+            shoot_dir.x = -1.0;
+            shooting = true;
+        }
+        if is_key_down(KeyCode::Right) {
+            shoot_dir.x = 1.0;
+            shooting = true;
+        }
+        if is_key_down(KeyCode::Up) {
+            shoot_dir.y = -1.0;
+            shooting = true;
+        }
+        if is_key_down(KeyCode::Down) {
+            shoot_dir.y = 1.0;
+            shooting = true;
+        }
+        shoot_dir = shoot_dir.normalize_or_zero();
+
+        self.player.shoot_dx = shoot_dir.x;
+        self.player.shoot_dy = shoot_dir.y;
 
         self.player.dx = dir.x * self.player.move_speed;
         self.player.dy = dir.y * self.player.move_speed;
@@ -163,7 +191,7 @@ impl Game {
             self.player.shoot_t -= dt;
         }
 
-        if is_key_down(KeyCode::J) || is_key_down(KeyCode::F) {
+        if shooting {
             if self.player.shoot_t <= 0.0 {
 
                 play_sound(&self.assets.shoot, PlaySoundParams { looped: false, volume: self.effect_level as f32 / 10.0 });
@@ -195,11 +223,6 @@ impl Game {
                 self.player.shoot_t += self.player.attack_speed;
             }
 
-        } else {
-            if dir.x != 0.0 || dir.y != 0.0 {
-                self.player.shoot_dx = dir.x;
-                self.player.shoot_dy = dir.y; 
-            }
         }
 
         if self.player.melee_t < 0.0 && (is_key_down(KeyCode::K) || is_key_down(KeyCode::G)) && false {
@@ -212,9 +235,5 @@ impl Game {
 
         self.player.x += self.player.dx * dt;
         self.player.y += self.player.dy * dt;
-
-        self.player.dx *= 0.85;
-        self.player.dy *= 0.85;
-
     }
 }

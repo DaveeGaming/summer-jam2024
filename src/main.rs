@@ -20,6 +20,7 @@ mod game;
 mod enemy;
 mod collision;
 mod player;
+mod collection;
 mod bullet;
 mod colors;
 mod characters;

@@ -39,6 +39,7 @@ pub enum GameState {
     MainMenu,
     Playing,
     Options,
+    Collection,
     Characters,
     Score,
 }
@@ -63,7 +64,7 @@ pub struct Game {
     pub curr_palette_idx: i32,
     pub enemy_spawn: Vec<SpawnEnemy>,
     pub enemies: Vec<Enemy>, // Box is for allocating to the heap
-    pub enemy_list:  [Enemy; 4],
+    pub enemy_list:  [Enemy; 10],
     pub upg_list: [CollectibeKind; 5],
     pub characters: Vec<Character>,
     pub bullets: Vec<Bullet>,
@@ -79,9 +80,11 @@ pub struct Game {
     pub menu_bg_y: f32,
     pub menu_bg_dx: f32,
     pub menu_bg_dy: f32,
+    pub difficulty_select: i32,
     pub menu_selected: i32,
     pub music_level: i32,
     pub effect_level: i32,
+    pub collection_x: i32,
     pub shooting_sound: bool,
     pub menu_song_started: bool,
     pub switch_effect_t: f32,
@@ -99,10 +102,12 @@ impl Game {
             player: Player::default(),
             enemies: Vec::new(),
             enemy_spawn: Vec::new(),
+            collection_x: 0,
             shooting_sound: true,
             menu_bg_dx: 30.0,
             menu_bg_dy: 30.0,
             menu_bg_x: -200.0,
+            difficulty_select: 1,
             menu_bg_y: -300.0,
             bullets: vec![],
             collectibles: Vec::new(),
@@ -149,6 +154,12 @@ impl Game {
                 Enemy { health: 10.0, x: 50.0, y: 50.0, size: 40.0, score: 30, kind: EnemyType::StaticCircleAttack, can_collide: true, contact_damage: 3, attack_t: 5.0, attack_speed: 5.0, ..Default::default()},
                 Enemy { state: ColorState::Primary,health: 2.0, x: 50.0, y: 50.0, size: 20.0, score: 5, kind: EnemyType::FollowEnemy, can_collide: true, ..Default::default()},
                 Enemy { state: ColorState::Secondary,health: 2.0, x: 50.0, y: 50.0, size: 20.0, score: 5, kind: EnemyType::FollowEnemy, can_collide: true, ..Default::default()},
+                Enemy { state: ColorState::Secondary,health: 2.0, x: 50.0, y: 50.0, size: 20.0, score: 5, kind: EnemyType::FollowEnemy, can_collide: true, ..Default::default()},
+                Enemy { state: ColorState::Secondary,health: 2.0, x: 50.0, y: 50.0, size: 20.0, score: 5, kind: EnemyType::FollowEnemy, can_collide: true, ..Default::default()},
+                Enemy { state: ColorState::Secondary,health: 2.0, x: 50.0, y: 50.0, size: 20.0, score: 5, kind: EnemyType::FollowEnemy, can_collide: true, ..Default::default()},
+                Enemy { state: ColorState::Secondary,health: 2.0, x: 50.0, y: 50.0, size: 20.0, score: 5, kind: EnemyType::FollowEnemy, can_collide: true, ..Default::default()},
+                Enemy { state: ColorState::Secondary,health: 2.0, x: 50.0, y: 50.0, size: 20.0, score: 5, kind: EnemyType::FollowEnemy, can_collide: true, ..Default::default()},
+                Enemy { state: ColorState::Secondary,health: 2.0, x: 50.0, y: 50.0, size: 20.0, score: 5, kind: EnemyType::FollowEnemy, can_collide: true, ..Default::default()},
             ]
         };
         g.characters = vec![
@@ -157,6 +168,7 @@ impl Game {
                name: String::from("Garry"),
                health: 10,
                speed: 10.0,
+               max_diff: 0,
                damage: 10,
                kind: CharacterKind::Garry,
             },
@@ -165,6 +177,7 @@ impl Game {
                name: String::from("Bob, Bob & Bob"),
                health: 10,
                speed: 10.0,
+               max_diff: 3,
                damage: 10,
                kind: CharacterKind::BobBobBob,
             },
@@ -172,6 +185,7 @@ impl Game {
                p: Player::default(),
                name: String::from("John"),
                health: 10,
+               max_diff: 1,
                speed: 10.0,
                damage: 10,
                kind: CharacterKind::John,
@@ -180,6 +194,7 @@ impl Game {
                p: Player::default(),
                name: String::from("Mark"),
                health: 10,
+               max_diff: 0,
                speed: 10.0,
                damage: 10,
                kind: CharacterKind::Mark,
@@ -188,6 +203,7 @@ impl Game {
                p: Player::default(),
                name: String::from("Locked"),
                health: 10,
+               max_diff: 1,
                speed: 10.0,
                damage: 10,
                kind: CharacterKind::Locked,
@@ -196,6 +212,7 @@ impl Game {
                p: Player::default(),
                name: String::from("Locked"),
                health: 10,
+               max_diff: 1,
                speed: 10.0,
                damage: 10,
                kind: CharacterKind::Locked,
@@ -230,6 +247,7 @@ impl Game {
             GameState::Playing => self.game_update(),
             GameState::Options => self.settings_update(),
             GameState::Characters => self.characters_update(),
+            GameState::Collection => self.collection_update(),
             _ => ()
         }
     }
@@ -240,6 +258,7 @@ impl Game {
             GameState::Playing => self.game_draw(),
             GameState::Options => self.settings_draw(BLACK),
             GameState::Characters => self.characters_draw(),
+            GameState::Collection => self.collection_draw(),
             _ => ()
         }
     }
@@ -313,26 +332,6 @@ impl Game {
         self.wave.old_x = self.player.x;
         self.wave.old_y = self.player.y;
     }
-
-    pub fn spawn_start_cube(&mut self) {
-        let start_size = 100.0;
-        let middle_rect = Rect{
-            x: DESIGN_WIDTH/2.0 - start_size/2.0,
-            y: DESIGN_HEIGHT/2.0 - start_size/2.0,
-            w: start_size,
-            h: start_size
-        };
-        self.collectibles.push(
-            Collectibe { 
-                x: middle_rect.x, 
-                y: middle_rect.y, 
-                size: middle_rect.w, 
-                kind: CollectibeKind::StartCube, 
-                should_exist: true }
-        );
-        self.wave.start_spawned = true;
-    }
-
 
     pub fn game_update(&mut self) {
 
@@ -488,37 +487,48 @@ impl Game {
         }
 
         if is_key_pressed(KeyCode::Space){
-            self.switch_effect_t = self.switch_effect_total;
+            if self.wave.current == 0 {
+                self.switch_effect_total = 0.3;
+            }
             // cool circle effect
+            self.switch_effect_t = self.switch_effect_total;
         }
-
+        
         if is_key_pressed(KeyCode::B) {
             self.enemies.push( 
                 self.enemy_list[1]
             );
         }
 
-
+        
         if self.switch_effect_t >= 0.0 {
             self.switch_effect_t -= get_frame_time();
         }
         if self.switch_effect_t <= 0.0 && self.switch_effect_t > -1.0 {
             self.color_state = self.color_state.next();
             self.switch_effect_t = -2.0;
+            self.switch_effect_total = 0.0;
         }
 
         match self.wave.state {
             WaveState::Start => {
-                if self.wave.current == 0 && !self.wave.start_spawned {
-                    // ADd start cube
-                    self.spawn_start_cube();
-                } else {
+                if self.wave.current != 0 && !self.wave.start_spawned {
                     if !self.wave.upgrades_spawned && self.wave.current > 0 {
                         self.spawn_upgrades();
                     }
                 }
+
+
+                if self.wave.current == 0 && is_key_pressed(KeyCode::Space) {
+                    self.wave.current = 1;
+                    self.wave.state = WaveState::Spawning;
+                }
             },
             WaveState::Spawning => {
+                if self.switch_effect_t > 0.0 {
+                    return;
+                }
+
                 // Wave started, everyting got defeated
                 if !self.wave.enemies_set {
                     let enemies_to_spawn = 20 + self.wave.current * 3;
@@ -573,6 +583,13 @@ impl Game {
 
 
     pub fn game_draw(&mut self) {
+
+
+        let color = match self.color_state {
+            ColorState::Primary => self.palette.fg_primary,
+            ColorState::Secondary => self.palette.fg_secondary
+        };
+
         let bg_color = match self.color_state {
             ColorState::Primary =>  self.palette.bg_primary,
             ColorState::Secondary => self.palette.bg_secondary
@@ -586,6 +603,9 @@ impl Game {
 
         clear_background(bg_color);
 
+        if self.wave.current == 0 {
+            draw_texture(&self.assets.controls, 0.0, 0.0, color);
+        }
 
         // draw switch effect before everything else
         if self.switch_effect_t > 0.0 {
@@ -646,10 +666,10 @@ impl Game {
         self.player_draw();
         
         let x_center = DESIGN_WIDTH / 2.0;
-        let wave_txt = format!("Wave {} ", self.wave.current);
-        draw_text_centered(&wave_txt, x_center, 70.0, 90.0, &self.assets.font_monogram);
-        let score = format!("score: {} ", self.current_score);
-        draw_text_centered(&score, x_center, 100.0, 40.0, &self.assets.font_monogram);
+        let wave_txt = format!("Wave {}", self.wave.current);
+        draw_text_centered(&wave_txt, x_center, 50.0, 20.0, &self.assets.font_monogram);
+        let score = format!("score: {}", self.current_score);
+        draw_text_centered(&score, x_center, 110.0, 8.0, &self.assets.font_monogram);
     }
 }
 
