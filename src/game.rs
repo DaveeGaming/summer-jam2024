@@ -6,11 +6,11 @@ use quad_storage::LocalStorage;
 
 use crate::characters::Character;
 use crate::characters::CharacterKind;
+use crate::upgrade::*;
 use crate::{assets::Assets, bullet::*, colors::ColorPalette, enemy::*};
 use crate::player::*;
 use crate::wave::*;
 use crate::colors::*;
-use crate::collectibe::*;
 
 pub const DESIGN_WIDTH: f32 = 1600.;
 pub const DESIGN_HEIGHT: f32 = 900.;
@@ -51,6 +51,23 @@ pub struct Unlocks {
 }
 
 
+pub struct DebugStuff{
+    pub debug1: i32,
+    pub debug2: i32,
+    pub debug3: i32,
+}
+
+impl DebugStuff {
+    pub fn default() -> Self {
+        DebugStuff {
+            debug1: 0,
+            debug2: 0,
+            debug3: 0,
+        }
+    }
+}
+
+
 pub struct Game {
     pub game_state: GameState,
     pub color_state: ColorState,
@@ -60,21 +77,22 @@ pub struct Game {
     pub assets: Assets,
     pub should_save: bool,
     pub palettes: [ColorPalette; 3],
+    pub enemy_list:  [Enemy; 10],
+    pub upg_list: [Upgrade; 4],
     pub palette: ColorPalette,
     pub curr_palette_idx: i32,
     pub enemy_spawn: Vec<SpawnEnemy>,
     pub enemies: Vec<Enemy>, // Box is for allocating to the heap
-    pub enemy_list:  [Enemy; 10],
-    pub upg_list: [CollectibeKind; 5],
     pub characters: Vec<Character>,
     pub bullets: Vec<Bullet>,
-    pub collectibles: Vec<Collectibe>,
     pub circle_attacks: Vec<CircleAttack>,
-    pub upgrades: Vec<Collectibe>, 
+    pub upgrades: Vec<UpgradeEntity>, 
     pub player: Player,
     pub wave: Wave,
     pub upgrade_count: f32,
     pub selected_char: i32,
+    pub debug: DebugStuff,
+    pub upgrade_shown: usize,
 
     pub menu_bg_x: f32,
     pub menu_bg_y: f32,
@@ -99,6 +117,7 @@ impl Game {
             should_save: false,
             palette: ColorPalette::default(),
             curr_palette_idx: 0,
+            debug: DebugStuff::default(),
             player: Player::default(),
             enemies: Vec::new(),
             enemy_spawn: Vec::new(),
@@ -110,9 +129,9 @@ impl Game {
             difficulty_select: 1,
             menu_bg_y: -300.0,
             bullets: vec![],
-            collectibles: Vec::new(),
             circle_attacks: Vec::new(),
             characters: Vec::new(),
+            upgrade_shown: 1000,
             upgrades: Vec::new(),
             menu_song_started: false,
             high_score: 0,
@@ -136,11 +155,39 @@ impl Game {
             wave: Wave::default(),
 
             upg_list: [
-                CollectibeKind::Maxhp,
-                CollectibeKind::Projectile,
-                CollectibeKind::Size,
-                CollectibeKind::Slowdmg,
-                CollectibeKind::Speed,
+                Upgrade {
+                    name: String::from("Talaria"),
+                    description: String::from("+10 speed"),
+                    lore: String::from("Please don't wear socks with it"),
+                    kind: UpgradeKind::Speed,
+                    rarity: UpgradeRarity::Common,
+                },
+                Upgrade {
+                    name: String::from("Hermes pants"),
+                    description: String::from("+5 speed;-2 max hp"),
+                    lore: String::from("hehe funi stuff hihi"),
+                    kind: UpgradeKind::Speed,
+                    rarity: UpgradeRarity::Common,
+                },
+                Upgrade {
+                    name: String::from("Hermes cock"),
+                    description: String::from("Every 2nd;attack deals;+2 damage"),
+                    lore: String::from("hehe funi stuff hihi"),
+                    kind: UpgradeKind::Speed,
+                    rarity: UpgradeRarity::Common,
+                },
+                Upgrade {
+                    name: String::from("Hermes cock II."),
+                    description: String::from("desc"),
+                    lore: String::from("hehe funi stuff hihi"),
+                    kind: UpgradeKind::Speed,
+                    rarity: UpgradeRarity::Common,
+                },
+                // CollectibeKind::Maxhp,
+                // CollectibeKind::Projectile,
+                // CollectibeKind::Size,
+                // CollectibeKind::Slowdmg,
+                // CollectibeKind::Speed,
             ],
 
             palettes: [
@@ -229,15 +276,6 @@ pub struct SpawnEnemy {
     pub y: f32,
     pub spawn_t: f32,
     pub to_spawn: Enemy,
-}
-
-
-impl Collectibe {
-    pub fn get_rect(&self) -> Rect {
-        Rect {
-            x: self.x, y: self.y, w: self.size, h: self.size,
-        }
-    }
 }
 
 impl Game {
@@ -335,6 +373,10 @@ impl Game {
 
     pub fn game_update(&mut self) {
 
+        if is_key_pressed(KeyCode::Key1) { self.debug.debug1 = increment_or_zero(self.debug.debug1, 1); }
+        if is_key_pressed(KeyCode::Key2) { self.debug.debug2 = increment_or_zero(self.debug.debug2, 4); }
+        if is_key_pressed(KeyCode::Key3) { self.debug.debug3 = increment_or_zero(self.debug.debug3, 1); }
+
         if self.wave.current >= 10 {
             self.unlocks.orangegreen = true;
             self.should_save = true;
@@ -356,7 +398,6 @@ impl Game {
             self.enemies = Vec::new();
             self.bullets = Vec::new();
             self.circle_attacks = Vec::new();
-            self.collectibles = Vec::new();
             self.upgrades = Vec::new();
             self.enemy_spawn = Vec::new();
             self.current_score = 0;
@@ -451,26 +492,10 @@ impl Game {
         });
         self.circle_attacks = circles;
 
-        let mut upg = std::mem::take(&mut self.upgrades);
-        upg.retain_mut(|u| {
-            self.update_upgrade(u);
-
+        self.update_upgrades();
+        self.upgrades.retain(|_| {
             !self.wave.upgrade_picked
         });
-        self.upgrades = upg;
-
-
-        let mut collectibles = std::mem::take(&mut self.collectibles);
-        collectibles.retain_mut(|c| {
-            match c.kind {
-                CollectibeKind::StartCube => self.update_start_cube(c),
-                _ => (),
-            }
-
-            c.should_exist
-        });
-        self.collectibles = collectibles;
-
 
 
         let mut bullets = std::mem::take(&mut self.bullets);
@@ -486,7 +511,7 @@ impl Game {
             self.palette = self.palettes[ rand::gen_range(0, self.palettes.len()) ]
         }
 
-        if is_key_pressed(KeyCode::Space){
+        if self.wave.state != WaveState::Start && is_key_pressed(KeyCode::Space){
             if self.wave.current == 0 {
                 self.switch_effect_total = 0.3;
             }
@@ -513,7 +538,7 @@ impl Game {
         match self.wave.state {
             WaveState::Start => {
                 if self.wave.current != 0 && !self.wave.start_spawned {
-                    if !self.wave.upgrades_spawned && self.wave.current > 0 {
+                    if !self.wave.upgrades_spawned {
                         self.spawn_upgrades();
                     }
                 }
@@ -646,23 +671,7 @@ impl Game {
         }
         self.enemy_spawn = spawners;
 
-        let collectibles = std::mem::take(&mut self.collectibles);
-        for c in collectibles.iter() {
-            match c.kind {
-                CollectibeKind::StartCube => self.draw_start_cube(c),
-                _ => (),
-            }
-        };
-        self.collectibles = collectibles;
-
-        let mut upg = std::mem::take(&mut self.upgrades);
-        for u in upg.iter_mut() {
-            self.draw_upgrades(u)
-        }
-
-        upg.retain(|_| !self.wave.upgrade_picked);
-        self.upgrades = upg;
-
+        self.draw_upgrades();
         self.player_draw();
         
         let x_center = DESIGN_WIDTH / 2.0;
@@ -696,6 +705,14 @@ pub fn distance_to_player(x: f32, y: f32, p: &Player) -> f32 {
 }
 
 
+pub fn draw_text_centered_c(text: &str, x: f32, y: f32, font_size: f32, font: &Font, color: Color) {
+    let size = measure_text(&text, Some(&font), font_size as u16, 1.0);
+    draw_text_ex(&text, x -size.width/2.0, y, TextParams { 
+        font: Some(font), 
+        color: color,
+        font_size: font_size as u16,..Default::default() });
+}
+
 pub fn draw_text_centered(text: &str, x: f32, y: f32, font_size: f32, font: &Font) {
     let size = measure_text(&text, Some(&font), font_size as u16, 1.0);
     draw_text_ex(&text, x -size.width/2.0, y, TextParams { 
@@ -717,4 +734,8 @@ pub fn rect_collide(r1: Rect, r2: Rect) -> bool {
     && r1.x + r1.w > r2.x
     && r1.y < r2.y + r2.h
     && r1.y + r1.h > r2.y;
+}
+
+pub fn increment_or_zero(num: i32, max: i32) -> i32 {
+    if num + 1 > max { 0 } else { num + 1}
 }

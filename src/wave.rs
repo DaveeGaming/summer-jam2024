@@ -1,5 +1,6 @@
 use macroquad::prelude::*;
 
+#[derive(PartialEq, Eq)]
 pub enum WaveState {
     Start,
     Spawning
@@ -28,7 +29,7 @@ pub struct Wave {
 impl Wave {
     pub fn default() -> Self {
         Wave { 
-            current: 0, 
+            current: 1, 
             state: WaveState::Start, 
             enemy_remaining: 0, 
             enemies_set: false,

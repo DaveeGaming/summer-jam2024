@@ -55,7 +55,6 @@ impl Enemy {
 }
 
 impl Game {
-
     pub fn update_follow_enemy(&mut self,e: &mut Enemy) {
         let dt = get_frame_time();
         let dir = dir_to_player(e.x, e.y, &self.player);

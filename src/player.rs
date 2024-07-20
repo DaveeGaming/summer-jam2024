@@ -13,6 +13,7 @@ pub struct Player {
     pub y: f32,
     pub dx: f32,
     pub dy: f32,
+    pub reroll: i32,
     pub spread: f32,
     pub projectiles: f32,
     pub attack_speed: f32,
@@ -43,6 +44,7 @@ impl Default for Player {
             bullet_size: 6.0,
             bullet_speed: 550.0,
             x: DESIGN_WIDTH/2.0,
+            reroll: 3,
             y: 700.0,
             dx: 0.0,
             dy: 0.0,
@@ -70,37 +72,6 @@ impl Player {
 }
 
 impl Game {
-    pub fn draw_healthbar(&self) {
-        let color = match self.color_state {
-            ColorState::Primary => self.palette.fg_primary,
-            ColorState::Secondary => self.palette.fg_secondary
-        };
-
-        let mut bg_health = color;
-        bg_health.a = 0.6;
-
-        let mut hp = self.player.health;
-        let height = 70.0;
-        let gap = -8.0;
-        let width = height / 2.0;
-        let full_size = self.player.max_health as f32 * (width + gap);
-
-        
-        for i in 0..self.player.max_health {
-            let x = DESIGN_WIDTH / 2.0 + (i as f32 * (width + gap)) - full_size / 2.0;
-            let y = DESIGN_HEIGHT - 100.0;
-
-            if hp > 0 {
-                draw_texture_ex(&self.assets.hpbar, x, y, color, 
-                    DrawTextureParams { dest_size: Some(Vec2 { x: width, y: height }), ..Default::default()});
-                hp -= 1;
-            } else {
-                draw_texture_ex(&self.assets.hpbar, x, y, bg_health, 
-                    DrawTextureParams { dest_size: Some(Vec2 { x: width, y: height }), ..Default::default()});
-            }
-        }
-
-    }
 
     pub fn player_draw(&self) {
         let color = match self.color_state {
@@ -126,9 +97,12 @@ impl Game {
         //     }
         // );
 
-        let texture = self.characters[self.selected_char as usize].get_sprite(&self.assets);
-        draw_texture_ex(texture, self.player.x, self.player.y, color, 
-            DrawTextureParams { dest_size: Some(Vec2 { x: self.player.size, y: self.player.size }), ..Default::default()});
+            
+        let offset = 20.0;
+        let scale = 3.0;
+        draw_circle(self.player.x + self.player.size / 2.0, self.player.y + self.player.size/2.0, self.player.size / 2.0, color);
+
+       
 
         draw_line(
             self.player.x + self.player.size/2.0, // x center 
@@ -137,8 +111,7 @@ impl Game {
             self.player.y + self.player.size/2.0 + self.player.shoot_dy * self.player.size/4.0, // y center + y_dir 
             2.0, WHITE);
 
-            self.draw_healthbar();
-
+        self.hp_bar_character();
     }
 
 

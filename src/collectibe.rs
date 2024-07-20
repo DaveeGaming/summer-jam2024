@@ -2,23 +2,6 @@ use macroquad::prelude::*;
 use crate::game::*;
 use crate::wave::*;
 
-#[derive(Clone, Copy)]
-pub enum CollectibeKind {
-    StartCube,
-    Maxhp,
-    Projectile,
-    Size,
-    Slowdmg,
-    Speed,
-}
-
-pub struct Collectibe {
-    pub x: f32,
-    pub y: f32,
-    pub size: f32, 
-    pub kind: CollectibeKind,
-    pub should_exist: bool
-}
 
 impl Game {
 

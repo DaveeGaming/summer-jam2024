@@ -21,14 +21,15 @@ mod enemy;
 mod collision;
 mod player;
 mod collection;
+mod hp;
 mod bullet;
 mod colors;
 mod characters;
+mod upgrade;
 mod assets;
 mod options;
 mod wave;
 mod menu;
-mod collectibe;
 
 use miniquad::window::screen_size;
 
